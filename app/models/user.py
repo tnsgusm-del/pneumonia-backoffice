@@ -1,3 +1,4 @@
+
 import enum
 from datetime import datetime
 from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime, Enum as SQLEnum
@@ -19,8 +20,13 @@ class DepartmentEnum(str, enum.Enum):
     DEV = "개발팀"
     RESEARCH = "연구진"
 
+from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.sql import func
+from app.core.db.databases import Base  # 과제 템플릿의 Base 경로 확인
+
 class User(Base):
     __tablename__ = "users"
+
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False)
@@ -36,3 +42,9 @@ class User(Base):
 
     # 관계 정의 (xray_images 테이블과의 연관 관계)
     xray_images = relationship("XrayImage", back_populates="uploader")
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    name = Column(String(100), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
