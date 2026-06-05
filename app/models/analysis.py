@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.sql import func
-from app.core.db.database import Base
+from app.core.db.databases import Base  # 프로젝트 템플릿의 Base 경로
 
 class Analysis(Base):
     __tablename__ = "analyses"

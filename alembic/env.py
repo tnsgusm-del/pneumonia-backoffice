@@ -1,4 +1,8 @@
 
+from app.core.db.databases import Base
+from app.models.user import User
+from app.models.patient import Patient
+from app.models.analysis import Analysis
 
 import asyncio
 from logging.config import fileConfig
@@ -18,7 +22,7 @@ from app.core.db.databases import Base, DATABASE_URL
 # Model Import
 from app import models
 
-from app.core.db.database import Base  # 프로젝트 템플릿의 Base 경로
+from app.core.db.databases import Base  # 프로젝트 템플릿의 Base 경로
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.analysis import Analysis
@@ -36,7 +40,7 @@ if config.config_file_name is not None:
 
 # model's MetaData object
 target_metadata = Base.metadata
-
+            
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
-from app.core.db.database import Base  # 과제 템플릿의 Base 경로 확인
+from app.core.db.databases import Base  # 과제 템플릿의 Base 경로 확인
 
 class User(Base):
     __tablename__ = "users"
