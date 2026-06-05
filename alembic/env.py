@@ -1,3 +1,6 @@
+import os
+from urllib.parse import quote_plus  # 👈 여기에 안전하게 추가!
+
 import asyncio
 from logging.config import fileConfig
 
@@ -66,14 +69,28 @@ async def run_migrations_online() -> None:
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
-
     """
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    # 1. 환경 변수에서 DB 접속 정보 가져오기
+    db_user = os.getenv("DB_USER", "root")
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "3306")
+    db_name = os.getenv("DB_NAME", "pneumonia")
+    
+    # 🔥 [핵심] 특수문자(@, !) 충돌을 막기 위해 quote_plus로 패스워드 감싸기
+    raw_password = os.getenv("DB_PASSWORD", "Password123@!")
+    db_pass = quote_plus(raw_password) 
+    
+    # 2. 안전하게 치환된 비밀번호로 비동기 MySQL URL 주소 조립
+    DATABASE_URL = f"mysql+asyncmy://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+
+    # 3. alembic.ini의 설정을 쓰는 대신, 우리가 직접 만든 DATABASE_URL로 비동기 엔진 생성
+    from sqlalchemy.ext.asyncio import create_async_engine
+    connectable = create_async_engine(
+        DATABASE_URL,
         poolclass=pool.NullPool,
     )
 
+    # 4. 기존 Alembic의 마이그레이션 실행 로직 수행
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
 
