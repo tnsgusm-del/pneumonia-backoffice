@@ -1,34 +1,33 @@
-import asyncio
 from logging.config import fileConfig
 
+from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# 프로젝트 루트를 sys.path에 추가하여 app 모듈을 임포트할 수 있게 함
-import os
-import sys
-sys.path.append(os.getcwd())
+from app.core.db.databases import Base
+import app.models
 
-from app.core.db.databases import Base, DATABASE_URL
 
-# Model Import
-from app import models
-
-# Alembic Config object
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
 config = context.config
-
-# Alembic 설정 파일의 sqlalchemy.url을 우리 앱의 DATABASE_URL로 덮어씁니다.
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# model's MetaData object
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
+
+# other values from the config, defined by the needs of env.py,
+# can be acquired:
+# my_important_option = config.get_main_option("my_important_option")
+# ... etc.
 
 
 def run_migrations_offline() -> None:
@@ -41,6 +40,7 @@ def run_migrations_offline() -> None:
 
     Calls to context.execute() here emit the given string to the
     script output.
+
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -54,33 +54,28 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection):
-    context.configure(connection=connection, target_metadata=target_metadata)
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode."""
+    from app.core.config import settings
+    from sqlalchemy import create_engine
+    
+    # settings.DATABASE_URL을 직접 사용하여 동기식 엔진을 만듭니다.
+    # Aiven MySQL 사용을 위해 URL을 pymysql 드라이버로 변환합니다.
+    sync_url = settings.DATABASE_URL.replace("mysql+asyncmy://", "mysql+pymysql://")
+    
+    connectable = create_engine(sync_url, poolclass=pool.NullPool)
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection, 
+            target_metadata=target_metadata
+        )
 
-
-async def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-
-    await connectable.dispose()
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    run_migrations_online()
