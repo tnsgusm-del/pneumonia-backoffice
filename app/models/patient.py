@@ -20,4 +20,8 @@ class Patient(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True, onupdate=func.now(), comment="환자 정보 수정 일시")
 
     # 관계 설정 (환자가 가진 진료 기록들)
+<<<<<<< HEAD
     medical_records = relationship("MedicalRecord", back_populates="patient", cascade="all, delete-orphan")
+=======
+    medical_records = relationship("MedicalRecord", back_populates="patient", cascade="all, delete-orphan")
+>>>>>>> main

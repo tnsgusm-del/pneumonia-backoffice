@@ -22,7 +22,17 @@ async_engine = create_async_engine(DATABASE_URL_ASYNC, echo=False, future=True)
 # 비동기 세션 팩토리 생성
 AsyncSessionLocal = async_sessionmaker(bind=async_engine, autoflush=False, expire_on_commit=False)
 
+<<<<<<< HEAD
 # 비동기 세션 생성 함수
+=======
+from app.models.user import User
+from app.models.patient import Patient
+from app.models.medical_record import MedicalRecord
+from app.models.xray_image import XrayImage
+from app.models.ai_analysis_result import AiAnalysisResult
+
+# 세션 생성 함수
+>>>>>>> main
 async def async_get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as db:
         yield db

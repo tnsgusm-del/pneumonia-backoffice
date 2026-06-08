@@ -16,5 +16,9 @@ class MedicalRecord(Base):
     # 관계 설정
     patient = relationship("Patient", back_populates="medical_records")
     xray_images = relationship("XrayImage", back_populates="medical_record", cascade="all, delete-orphan")
+<<<<<<< HEAD
     # 💡 핵심: 이전 단계에서 조장님 규칙으로 맞춘 'AiAnalysisResult'로 올바르게 타겟 설정이 유지되었습니다.
     ai_analysis_results = relationship("AiAnalysisResult", back_populates="medical_record", cascade="all, delete-orphan")
+=======
+    ai_analysis_results = relationship("AiAnalysisResult", back_populates="medical_record", cascade="all, delete-orphan")
+>>>>>>> main

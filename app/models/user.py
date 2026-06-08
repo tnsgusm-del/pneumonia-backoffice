@@ -4,6 +4,10 @@ from sqlalchemy import BigInteger, String, Boolean, DateTime, func, Enum as SQLA
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.db.databases import Base
 
+
+# ※ Base는 프로젝트 환경에 맞게 임포트 경로를 맞춰주세요. (예: app.core.db.databases)
+from app.core.db.databases import Base 
+
 class GenderEnum(str, Enum):
     M = 'M'
     F = 'F'

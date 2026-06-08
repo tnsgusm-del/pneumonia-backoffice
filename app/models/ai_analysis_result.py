@@ -16,4 +16,8 @@ class AiAnalysisResult(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True, onupdate=func.now(), comment="수정 일시")
 
     # 관계 설정
+<<<<<<< HEAD
     medical_record = relationship("MedicalRecord", back_populates="ai_analysis_results")
+=======
+    medical_record = relationship("MedicalRecord", back_populates="ai_analysis_results")
+>>>>>>> main

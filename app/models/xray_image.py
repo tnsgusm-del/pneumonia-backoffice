@@ -15,4 +15,8 @@ class XrayImage(Base):
 
     # 관계 설정
     medical_record = relationship("MedicalRecord", back_populates="xray_images")
+<<<<<<< HEAD
     uploader = relationship("User", back_populates="xray_images")
+=======
+    uploader = relationship("User", back_populates="xray_images")
+>>>>>>> main
