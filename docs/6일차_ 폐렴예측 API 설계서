@@ -1,0 +1,39 @@
+# 6일차 폐렴 예측 API 설계서
+
+## 1. API 개요
+| 항목 | 내용 |
+| --- | --- |
+| **API 이름** | AI 폐렴 예측 및 결과 조회 API |
+| **설명** | 특정 진료기록에 등록된 X-ray 이미지를 AI 모델로 분석하여 폐렴 여부를 판독합니다. (이미 판독된 결과가 있으면 캐싱된 DB 데이터를 즉시 반환합니다.) |
+| **엔드포인트** | `/api/v1/medical-records/{record_id}/predict` |
+| **메서드** | `POST` |
+| **권한** | `STAFF`, `ADMIN` (PENDING 접근 불가) |
+
+## 2. 요청 (Request)
+
+### Headers
+| Key | Value | 설명 |
+| --- | --- | --- |
+| `Authorization` | `Bearer <access_token>` | JWT 액세스 토큰 (필수) |
+
+### Path Parameters
+| 파라미터명 | 타입 | 필수 여부 | 설명 |
+| --- | --- | --- | --- |
+| `record_id` | integer | Y | 예측을 수행할 진료기록의 고유 ID |
+
+### Body
+- **해당 없음** (파일 업로드 없이 DB에 저장된 이미지를 기반으로 예측 수행)
+
+---
+
+## 3. 응답 (Response)
+
+### 성공 (200 OK)
+```json
+{
+  "record_id": 1,
+  "is_pneumonia": true,
+  "confidence": 0.985,
+  "heatmap_url": "",
+  "message": "AI 예측이 성공적으로 수행되고 결과가 DB에 저장되었습니다." 
+}

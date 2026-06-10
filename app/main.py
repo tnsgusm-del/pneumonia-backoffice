@@ -2,29 +2,27 @@ import os
 from pathlib import Path
 from fastapi import FastAPI
 from starlette.staticfiles import StaticFiles
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse 
 
-# ★ [추가] 내가 2-1에서 만든 회원관리 부서(라우터)를 가져옵니다!
+# [수정된 부분] prediction 객체가 아닌 router 자체를 가져와서 별칭을 붙입니다.
 from app.apis.practice_apis import router as practice_router
+from app.apis.prediction import router as prediction_router 
 
 app = FastAPI(title="폐렴 환자 관리 백오피스")
 
-# ★ [추가] 메인 건물(app)에 회원관리 부서(라우터)를 덜컥 장착해 줍니다!
 app.include_router(practice_router)
+# [수정된 부분] prediction_router를 등록합니다.
+app.include_router(prediction_router, prefix="/api/v1", tags=["Prediction"])
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 만약 static, media 폴더가 존재하지 않으면 생성
 if not (BASE_DIR / "static").exists():
     os.mkdir(BASE_DIR / "static")
 if not (BASE_DIR / "media").exists():
     os.mkdir(BASE_DIR / "media")
 
-# 'static' 폴더를 '/static' 경로로 마운트 (CSS, JS 파일 서빙용)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-# 'media' 폴더를 '/media' 경로로 마운트 (사용자 업로드 파일 서빙용)
 app.mount("/media", StaticFiles(directory=BASE_DIR / "media"), name="media")
-
 
 @app.get(path="/healthcheck", status_code=200, include_in_schema=False)
 async def healthcheck():
