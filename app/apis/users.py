@@ -13,17 +13,17 @@ from app.core.db.databases import Base, get_db
 from app.models.user import User, GenderEnum, DepartmentEnum, RoleEnum
 
 # ==========================================
-# 🗺️ APIRouter ñemoambue (Mbohovái 1, 2)
+# 🗺️ API 라우터 선언 (인증용과 유저용 분리)
 # ==========================================
-# Auth router (/api/v1/auth)
+# 인증 관련 라우터 (/api/v1/auth)
 auth_router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
-# User router (/api/v1/users)
+# 유저 정보 조작 라우터 (/api/v1/users)
 user_router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
 
 # ==========================================
-# 🔒 Ñangareko ha JWT ñemboheko (NFR-USER-001)
+# 🔒 보안 및 JWT 설정 (NFR-USER-001)
 # ==========================================
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-super-secret-key-change-in-production")
 ALGORITHM = "HS256"
@@ -31,17 +31,17 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 def get_password_hash(password: str) -> str:
-    """Tembiapo ñe'ẽñemi ñemoambue hag̃ua"""
+    """비밀번호 해싱 암호화 함수"""
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed.decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Tembiapo ñe'ẽñemi ñeha'arõ hag̃ua"""
+    """비밀번호 검증 함수"""
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Mba'e ome'ẽva Access Token"""
+    """Access Token 생성"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -51,7 +51,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict) -> str:
-    """Mba'e ome'ẽva Refresh Token"""
+    """Refresh Token 생성"""
     expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = data.copy()
     to_encode.update({"exp": expire})
@@ -59,7 +59,7 @@ def create_refresh_token(data: dict) -> str:
 
 
 # ==========================================
-# 📋 Pydantic DTO ñemboheko (Mbohovái 4, 5)
+# 📋 Pydantic DTO 스키마 정의
 # ==========================================
 class UserRegister(BaseModel):
     email: str = Field(..., example="user@example.com")
@@ -104,19 +104,19 @@ class PasswordUpdate(BaseModel):
 
 
 # ==========================================
-# 🚀 Auth Router kuatia (/api/v1/auth)
+# 🚀 인증 라우터 구현체 (/api/v1/auth)
 # ==========================================
 
 @auth_router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    """[REQ-USER-001] User mbohapypyry pyahu"""
+    """[REQ-USER-001] 신규 회원가입 등록"""
     exist_email = db.execute(select(User).where(User.email == user_data.email)).scalars().first()
     if exist_email:
-        raise HTTPException(status_code=400, detail="Ko e-mail oĩma ñandutípe.")
+        raise HTTPException(status_code=400, detail="이미 가입된 이메일입니다.")
     
     exist_phone = db.execute(select(User).where(User.phone_number == user_data.phone_number)).scalars().first()
     if exist_phone:
-        raise HTTPException(status_code=400, detail="Ko pumbyry papapy oĩma mbohapypyry.")
+        raise HTTPException(status_code=400, detail="이미 사용 중인 휴대폰 번호입니다.")
 
     hashed_pwd = get_password_hash(user_data.password)
     new_user = User(
@@ -126,7 +126,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
         department=user_data.department,
         gender=user_data.gender,
         phone_number=user_data.phone_number,
-        role=RoleEnum.PENDING,
+        role=RoleEnum.PENDING,  # 최초 가입 시 승인 대기자 상태
         is_active=True
     )
     db.add(new_user)
@@ -137,20 +137,21 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
 
 @auth_router.post("/login", response_model=TokenResponse)
 def login_user(response: Response, login_data: UserLogin, db: Session = Depends(get_db)):
-    """[REQ-USER-002 / NFR-USER-001] Login ha JWT me'ẽ"""
+    """[REQ-USER-002 / NFR-USER-001] 로그인 및 JWT 발급"""
     user = db.execute(select(User).where(User.email == login_data.email)).scalars().first()
     if not user or not verify_password(login_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="E-mail térã ñe'ẽñemi oĩ vai.")
+        raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
     
     if not user.is_active:
-        raise HTTPException(status_code=401, detail="Ko kuatiañe'ẽ ndoikói.")
+        raise HTTPException(status_code=401, detail="비활성화된 계정입니다. 관리자에게 문의하세요.")
         
     if user.role == RoleEnum.PENDING:
-        raise HTTPException(status_code=401, detail="Eha'arõ sãmbyhyhára ñemoneĩ.")
+        raise HTTPException(status_code=401, detail="관리자의 가입 승인을 기다리는 대기자 상태입니다.")
 
     access_token = create_access_token(data={"user_id": user.id})
     refresh_token = create_refresh_token(data={"user_id": user.id})
 
+    # HTTP-Only 쿠키 설정
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -165,21 +166,21 @@ def login_user(response: Response, login_data: UserLogin, db: Session = Depends(
 
 @auth_router.post("/token/refresh", response_model=TokenResponse)
 def refresh_token_endpoint(refresh_token: Optional[str] = Cookie(None), db: Session = Depends(get_db)):
-    """[NFR-USER-001] Token ñembopyahu mbohovái guasu"""
+    """[NFR-USER-001] 리프레시 토큰을 이용한 엑세스 토큰 갱신"""
     if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token ndoikói cookie-pe.")
+        raise HTTPException(status_code=401, detail="리프레시 토큰이 쿠키에 존재하지 않습니다.")
     
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("user_id")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Token payload oĩ vai.")
+            raise HTTPException(status_code=401, detail="인증 토큰 정보가 올바르지 않습니다.")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Refresh token opáma. Emoñepyrũ jey sesión.")
+        raise HTTPException(status_code=401, detail="리프레시 토큰이 만료되었습니다. 다시 로그인해 주세요.")
 
     user = db.execute(select(User).where(User.id == user_id)).scalars().first()
     if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="User ndoikói.")
+        raise HTTPException(status_code=401, detail="유효하지 않은 계정 세션입니다.")
 
     new_access_token = create_access_token(data={"user_id": user.id})
     return {"access_token": new_access_token, "token_type": "bearer"}
@@ -187,13 +188,13 @@ def refresh_token_endpoint(refresh_token: Optional[str] = Cookie(None), db: Sess
 
 @auth_router.post("/logout")
 def logout_user(response: Response):
-    """[REQ-USER-003] Sesión ñembogue ha cookie mbogue"""
+    """[REQ-USER-003] 쿠키 비우기 및 로그아웃"""
     response.delete_cookie(key="refresh_token", httponly=True, samesite="strict")
-    return {"message": "Esẽma porã."}
+    return {"message": "로그아웃 되었습니다."}
 
 
 # ==========================================
-# 🚀 User Router kuatia (/api/v1/users)
+# 🚀 유저 정보 조작 라우터 구현체 (/api/v1/users)
 # ==========================================
 
 @user_router.get("", response_model=List[UserResponse])
@@ -202,7 +203,7 @@ def get_user_list(
     department: Optional[DepartmentEnum] = None,
     db: Session = Depends(get_db)
 ):
-    """[REQ-USER-004] Sãmbyhyhára ohecha hag̃ua user-kuéra tyvy"""
+    """[REQ-USER-004] 관리자 전용 전체 회원 목록 조회"""
     query = select(User)
     
     if search:
@@ -221,15 +222,15 @@ def get_user_list(
 
 @user_router.patch("/{user_id}/role")
 def change_user_role(user_id: int, role_data: RoleUpdate, db: Session = Depends(get_db)):
-    """[REQ-USER-005] Sãmbyhyhára omoambue hag̃ua user role"""
+    """[REQ-USER-005] 관리자 전용 특정 회원 역할(권한) 변경"""
     user = db.execute(select(User).where(User.id == user_id)).scalars().first()
     if not user:
-        raise HTTPException(status_code=404, detail="User ndojehupytýi.")
+        raise HTTPException(status_code=404, detail="지정한 사용자를 찾을 수 없습니다.")
     
     user.role = role_data.role
     db.commit()
     return {
-        "message": "User role oñemoambue porã.",
+        "message": "회원 권한이 성공적으로 변경되었습니다.",
         "user_id": user.id,
         "changed_role": user.role
     }
@@ -237,19 +238,19 @@ def change_user_role(user_id: int, role_data: RoleUpdate, db: Session = Depends(
 
 @user_router.get("/me", response_model=UserResponse)
 def get_my_profile(db: Session = Depends(get_db)):
-    """[REQ-USER-006] Che profile jehecha (Mbohovái 4)"""
+    """[REQ-USER-006] 내 마이페이지 프로필 조회"""
     dummy_user = db.execute(select(User)).scalars().first()
     if not dummy_user:
-        raise HTTPException(status_code=404, detail="User ndoĩri.")
+        raise HTTPException(status_code=404, detail="사용자 정보가 존재하지 않습니다.")
     return dummy_user
 
 
 @user_router.patch("/me", response_model=UserResponse)
 def update_my_profile(update_data: UserUpdate, db: Session = Depends(get_db)):
-    """[REQ-USER-007] Che profile ñemoambue voreve"""
+    """[REQ-USER-007] 마이페이지 일부 정보(부서, 전화번호) 수정"""
     user = db.execute(select(User)).scalars().first()
     if not user:
-        raise HTTPException(status_code=404, detail="User ñemoambue hag̃ua ndoĩri.")
+        raise HTTPException(status_code=404, detail="수정할 사용자 정보가 존재하지 않습니다.")
 
     if update_data.department is not None:
         user.department = update_data.department
@@ -258,7 +259,7 @@ def update_my_profile(update_data: UserUpdate, db: Session = Depends(get_db)):
             select(User).where(User.phone_number == update_data.phone_number, User.id != user.id)
         ).scalars().first()
         if exist_phone:
-            raise HTTPException(status_code=400, detail="Ambue user oiporúma ko pumbyry.")
+            raise HTTPException(status_code=400, detail="이미 다른 사용자가 등록한 휴대폰 번호입니다.")
         user.phone_number = update_data.phone_number
 
     db.commit()
@@ -268,25 +269,25 @@ def update_my_profile(update_data: UserUpdate, db: Session = Depends(get_db)):
 
 @user_router.patch("/me/password")
 def change_my_password(pwd_data: PasswordUpdate, db: Session = Depends(get_db)):
-    """[REQ-USER-008] Che ñe'ẽñemi ñemoambue PATCH rupive (Mbohovái 3)"""
+    """[REQ-USER-008] 기존 비밀번호 검증 후 비밀번호 변경"""
     user = db.execute(select(User)).scalars().first()
     if not user:
-        raise HTTPException(status_code=404, detail="User ndojehupytýi.")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
     if not verify_password(pwd_data.current_password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Ñe'ẽñemi ymaguare oĩ vai.")
+        raise HTTPException(status_code=400, detail="현재 사용 중인 비밀번호가 일치하지 않습니다.")
 
     user.hashed_password = get_password_hash(pwd_data.new_password)
     db.commit()
-    return {"message": "Ñe'ẽñemi oñemoambue porã."}
+    return {"message": "비밀번호가 성공적으로 변경되었습니다."}
 
 
 @user_router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 def withdraw_my_account(db: Session = Depends(get_db)):
-    """[REQ-USER-009] Che kuatiañe'ẽ mbogue (Mbohovái 6)"""
+    """[REQ-USER-009] 본인 회원 탈퇴 (CASCADE 삭제 보장)"""
     user = db.execute(select(User)).scalars().first()
     if not user:
-        raise HTTPException(status_code=404, detail="User mbogue hag̃ua ndoĩri.")
+        raise HTTPException(status_code=404, detail="탈퇴할 회원 정보가 존재하지 않습니다.")
 
     db.delete(user)
     db.commit()

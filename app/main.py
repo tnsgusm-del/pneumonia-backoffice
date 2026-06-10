@@ -9,6 +9,7 @@ from app.core.db.databases import engine, Base
 from app.apis.practice_apis import router as practice_router
 from app.apis.users import auth_router, user_router
 from app.apis.patients import router as patients_router
+from app.apis.ai_analysis import router as ai_analysis_router
 
 # [테이블 자동 생성 활성화] 앱 기동 시 등록된 모델 스키마를 추적하여 DB 테이블을 자동 생성합니다.
 Base.metadata.create_all(bind=engine)
@@ -20,6 +21,8 @@ app.include_router(practice_router)
 app.include_router(auth_router)     # 인증 관리 라우터 연동 (/api/v1/auth)
 app.include_router(user_router)     # 유저 관리 라우터 연동 (/api/v1/users)
 app.include_router(patients_router) # 환자 및 진료 기록 관리 라우터 연동
+app.include_router(ai_analysis_router)
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
