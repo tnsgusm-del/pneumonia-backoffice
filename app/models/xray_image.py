@@ -11,7 +11,15 @@ class XrayImage(Base):
     uploader_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment="X-ray 이미지를 업로드한 유저의 id")
     image_url: Mapped[str] = mapped_column(String(2048), nullable=False, comment="이미지 url")
     shooting_datetime: Mapped[datetime] = mapped_column(DateTime, nullable=False, comment="X-ray 촬영일시")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now(), comment="X-ray 이미지 등록 일시")
+    
+    # 💡 [이중 안전장치] 엄격 모드 방어를 위한 다중 디폴트 시간 지정
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, 
+        nullable=False, 
+        default=func.now(), 
+        server_default=func.now(), 
+        comment="X-ray 이미지 등록 일시"
+    )
 
     # 관계 설정
     medical_record = relationship("MedicalRecord", back_populates="xray_images")

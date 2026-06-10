@@ -16,7 +16,15 @@ class Patient(Base):
     age: Mapped[int] = mapped_column(SmallInteger, nullable=False, comment="smallint")
     gender: Mapped[PatientGenderEnum] = mapped_column(SQLAlchemyEnum(PatientGenderEnum), nullable=True, comment="환자 성별")
     phone: Mapped[str] = mapped_column(String(11), nullable=False, comment="환자 연락처, 국내 전화번호로 한정")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now(), comment="환자 정보 등록 일시")
+    
+    # 💡 [이중 안전장치] Python과 MySQL Strict Mode 양쪽에서 생성 시간을 자동 보장하도록 default 설정을 결합합니다.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, 
+        nullable=False, 
+        default=func.now(), 
+        server_default=func.now(), 
+        comment="환자 정보 등록 일시"
+    )
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True, onupdate=func.now(), comment="환자 정보 수정 일시")
 
     # 관계 설정 (환자가 가진 진료 기록들)
