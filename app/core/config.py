@@ -1,14 +1,13 @@
 from pydantic_settings import BaseSettings
-from pydantic import computed_field  # 이 import가 꼭 필요합니다!
+from pydantic import computed_field
 
 class Settings(BaseSettings):
-    DB_USER: str = "root"
-    DB_PASSWORD: str = "password1234"
+    DB_USER: str = "ozcoding"
+    DB_PASSWORD: str = "pw1234"
     DB_HOST: str = "localhost"
-    DB_PORT: str = "3306"
+    DB_PORT: str = "3307"
     DB_NAME: str = "ai_health"
 
-    # 이 부분을 아래와 같이 작성해서 저장하세요!
     @computed_field
     @property
     def DATABASE_URL(self) -> str:
