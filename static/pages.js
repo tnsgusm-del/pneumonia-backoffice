@@ -1,5 +1,5 @@
 /**
- * 페이지 렌더링 및 이벤트 핸들러 모음
+ * 페이지 렌더링 및 이벤트 핸들러 모음 (최종 성별 버그 완정 보정본)
  */
 
 const pages = {
@@ -62,8 +62,8 @@ const pages = {
                 <td>${p.id}</td>
                 <td>${p.name}</td>
                 <td>${p.age}</td>
-                <td>${p.gender === 'male' ? '남성' : '여성'}</td>
-                <td>${utils.formatPhoneNumber(p.phone_number)}</td>
+                <td>${p.gender === 'M' || p.gender === 'male' ? '남성' : '여성'}</td>
+                <td>${utils.formatPhoneNumber(p.phone || p.phone_number)}</td>
                 <td><button onclick="navigate('/patients/${p.id}')">상세보기</button></td>
             </tr>
         `).join('');
@@ -88,12 +88,13 @@ const pages = {
         app.innerHTML = html;
         
         // 환자 정보 표시
-        document.getElementById('patient-name').innerText = `${patient.name} (${patient.gender === 'male' ? '남성' : '여성'})`;
-        document.getElementById('patient-info').innerText = `나이: ${patient.age}세 | 연락처: ${utils.formatPhoneNumber(patient.phone_number)}`;
+        const displayGender = (patient.gender === 'M' || patient.gender === 'male') ? '남성' : '여성';
+        document.getElementById('patient-name').innerText = `${patient.name} (${displayGender})`;
+        document.getElementById('patient-info').innerText = `나이: ${patient.age}세 | 연락처: ${utils.formatPhoneNumber(patient.phone || patient.phone_number)}`;
         
         // 수정 폼 초기값 설정
         document.getElementById('update-name').value = patient.name;
-        document.getElementById('update-phone').value = utils.formatPhoneNumber(patient.phone_number);
+        document.getElementById('update-phone').value = utils.formatPhoneNumber(patient.phone || patient.phone_number);
         
         const updatePhoneInput = document.getElementById('update-phone');
         if (updatePhoneInput) {
@@ -197,7 +198,7 @@ const pages = {
         document.getElementById('me-email').innerText = state.user.email;
         document.getElementById('me-name-display').innerText = state.user.name;
         document.getElementById('me-department-display').innerText = state.user.department;
-        document.getElementById('me-gender-display').innerText = state.user.gender === 'male' ? '남성' : '여성';
+        document.getElementById('me-gender-display').innerText = state.user.gender === 'M' || state.user.gender === 'male' ? '남성' : '여성';
         document.getElementById('me-phone-display').innerText = utils.formatPhoneNumber(state.user.phone_number);
         document.getElementById('me-role-display').innerText = state.user.role;
 
@@ -369,18 +370,37 @@ const pages = {
 
     async handlePatientCreate(e) {
         e.preventDefault();
+        
+        // 🚨 [진단용 디버깅 로그] 화면 선택 상태를 직접 가상화하여 출력
+        let rawGender = document.getElementById('gender').value || '';
+        console.log("🔍 [디버깅] 화면에서 마우스로 고른 원래 성별 텍스트 값:", rawGender);
+        
+        let mappedGender = 'M'; // 기본값 설정
+        
+        const cleanGender = rawGender.trim().toLowerCase();
+        if (cleanGender === '남자' || cleanGender === 'male' || cleanGender === 'm' || cleanGender === '남성' || cleanGender === '남') {
+            mappedGender = 'M';
+        } else if (cleanGender === '여자' || cleanGender === 'female' || cleanGender === 'f' || cleanGender === '여성' || cleanGender === '여') {
+            mappedGender = 'F';
+        }
+        
+        console.log("✨ [디버깅] 백엔드 포맷으로 최종 변환된 성별 기호:", mappedGender);
+
         const patientData = {
             name: document.getElementById('name').value,
             age: parseInt(document.getElementById('age').value),
-            gender: document.getElementById('gender').value,
-            phone_number: document.getElementById('phone_number').value.replace(/[^\d]/g, '')
+            gender: mappedGender, // 규격 필터 통과 완료 (M 또는 F)
+            phone: document.getElementById('phone_number').value.replace(/[^\d]/g, '') // 🚨 'phone_number' -> 'phone' 키값 보정!
         };
+        
+        console.log("✈️ [디버깅] 백엔드로 전송할 최종 환자 데이터 오브젝트:", patientData);
         
         try {
             await apis.createPatient(patientData);
             utils.showAlert('환자가 등록되었습니다.', 'success');
             navigate('/patients');
         } catch (err) {
+            console.error("❌ [디버깅] 환자 등록 과정에서 백엔드가 뿜어낸 실제 에러 내역:", err);
             utils.showAlert(`환자 등록 실패: ${err.message}`, 'error');
         }
     },
@@ -436,7 +456,7 @@ const pages = {
         const patientId = state.currentPatientId;
         const updateData = {
             name: document.getElementById('update-name').value,
-            phone_number: document.getElementById('update-phone').value.replace(/[^\d]/g, '')
+            phone: document.getElementById('update-phone').value.replace(/[^\d]/g, '') // 🚨 'phone_number' -> 'phone' 키값 보정!
         };
 
         try {

@@ -66,8 +66,10 @@ class MedicalRecordBriefResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# 🚨 [버그 패치] 진료 기록 상세 데이터 응답 시 부모 환자 ID(patient_id) 누락 문제 전격 해결
 class MedicalRecordDetailResponse(BaseModel):
     id: int
+    patient_id: int  # 🔍 프론트엔드 뒤로가기 동기화를 위한 부모 환자 ID 필드 추가
     chart_number: str
     symptoms: str
     xray_image_url: Optional[str] = None
@@ -84,7 +86,6 @@ class MedicalRecordDetailResponse(BaseModel):
 @router.post("/patients", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
 def create_patient(patient_data: PatientCreate, db: Session = Depends(get_db)):
     """[REQ-PTNT-001] 환자 정보 등록 API (의료인 전용)"""
-    # 휴대폰 번호 중복 가입 차단 예방 로직
     exist_patient = db.execute(select(Patient).where(Patient.phone == patient_data.phone)).scalars().first()
     if exist_patient:
         raise HTTPException(status_code=400, detail="이미 등록된 연락처의 환자입니다.")
@@ -144,7 +145,6 @@ def update_patient_info(patient_id: int, update_data: PatientUpdate, db: Session
     if update_data.name is not None:
         patient.name = update_data.name
     if update_data.phone is not None:
-        # 내 연락처 제외 다른 환자의 연락처와 겹치는지 체크
         exist_phone = db.execute(
             select(Patient).where(Patient.phone == update_data.phone, Patient.id != patient_id)
         ).scalars().first()
@@ -164,7 +164,6 @@ def delete_patient(patient_id: int, db: Session = Depends(get_db)):
     if not patient:
         raise HTTPException(status_code=404, detail="삭제할 환자가 존재하지 않습니다.")
 
-    # SQLAlchemy cascade="all, delete-orphan" 관계 지정에 의해 연계된 진료기록 및 자식 테이블 자동 연쇄 삭제 처리
     db.delete(patient)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -183,17 +182,14 @@ async def create_medical_record(
     db: Session = Depends(get_db)
 ):
     """[REQ-MDR-001] 진료기록 등록 및 X-Ray 이미지 로컬 동적 업로드 저장 API"""
-    # 1. 대상 환자 존재 여부 체크
     patient = db.execute(select(Patient).where(Patient.id == patient_id)).scalars().first()
     if not patient:
         raise HTTPException(status_code=404, detail="등록하려는 진료 기록의 대상 환자가 존재하지 않습니다.")
 
-    # 2. 차트 넘버 중복 체크
     exist_chart = db.execute(select(MedicalRecord).where(MedicalRecord.chart_number == chart_number)).scalars().first()
     if exist_chart:
         raise HTTPException(status_code=400, detail="이미 등록된 차트 넘버 식별자입니다.")
 
-    # 3. 업로드 이미지 이름 고유 해시화 가공 및 로컬 실시간 저장
     file_extension = Path(xray_image.filename).suffix
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = UPLOAD_DIR / unique_filename
@@ -205,7 +201,6 @@ async def create_medical_record(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"X-Ray 이미지 로컬 디스크 저장 실패: {str(e)}")
 
-    # 4. 진료기록 및 XrayImage 관계 테이블 일괄 영속화 저장
     new_record = MedicalRecord(
         patient_id=patient_id,
         chart_number=chart_number,
@@ -215,7 +210,6 @@ async def create_medical_record(
     db.commit()
     db.refresh(new_record)
 
-    # X-ray 이미지 이력 연결 저장
     new_xray = XrayImage(
         record_id=new_record.id,
         image_url=f"/media/xray/{unique_filename}",
@@ -223,7 +217,6 @@ async def create_medical_record(
     )
     db.add(new_xray)
 
-    # 과제 가점: AI 폐렴 분석 가상 모의 분석 데이터 세트 주입
     new_ai_result = AiAnalysisResult(
         record_id=new_record.id,
         is_pneumonia=True,
@@ -247,15 +240,13 @@ async def create_medical_record(
 
 @router.get("/patients/{patient_id}/medical-records", response_model=List[MedicalRecordBriefResponse])
 def get_patient_records(patient_id: int, db: Session = Depends(get_db)):
-    """[REQ-MDR-002] 특정 환자의 진료 기록 목록 요약본 조회 API (증상 100자 요약 기능 포함)"""
-    # 대상 환자 검증
+    """[REQ-MDR-002] 특정 환자의 진료 기록 목록 요약본 조회 API"""
     patient = db.execute(select(Patient).where(Patient.id == patient_id)).scalars().first()
     if not patient:
         raise HTTPException(status_code=404, detail="해당 환자 정보를 찾을 수 없습니다.")
 
     records = db.execute(select(MedicalRecord).where(MedicalRecord.patient_id == patient_id)).scalars().all()
 
-    # 증상이 100자를 초과할 경우 생략 문자 처리 요구조건 구현
     brief_records = []
     for record in records:
         short_symptoms = record.symptoms
@@ -279,7 +270,6 @@ def get_medical_record_detail(record_id: int, db: Session = Depends(get_db)):
     if not record:
         raise HTTPException(status_code=404, detail="지정한 진료 기록을 찾을 수 없습니다.")
 
-    # 관계 설정에서 첫 번째 등록된 이미지 주소 매핑
     image_url = None
     xray = db.execute(select(XrayImage).where(XrayImage.record_id == record_id)).scalars().first()
     if xray:
@@ -287,6 +277,7 @@ def get_medical_record_detail(record_id: int, db: Session = Depends(get_db)):
 
     return {
         "id": record.id,
+        "patient_id": record.patient_id,  # 🚨 [버그 패치] 응답 바디에 patient_id를 정확히 매핑하여 전달
         "chart_number": record.chart_number,
         "symptoms": record.symptoms,
         "xray_image_url": image_url,
