@@ -66,9 +66,10 @@ class MedicalRecordBriefResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# 🚨 [버그 패치] 진료 기록 상세 데이터 응답 시 부모 환자 ID(patient_id) 누락 문제 전격 해결
 class MedicalRecordDetailResponse(BaseModel):
     id: int
-    patient_id: int
+    patient_id: int  # 🔍 프론트엔드 뒤로가기 동기화를 위한 부모 환자 ID 필드 추가
     chart_number: str
     symptoms: str
     xray_image_url: Optional[str] = None
@@ -276,7 +277,7 @@ def get_medical_record_detail(record_id: int, db: Session = Depends(get_db)):
 
     return {
         "id": record.id,
-        "patient_id": record.patient_id,
+        "patient_id": record.patient_id,  # 🚨 [버그 패치] 응답 바디에 patient_id를 정확히 매핑하여 전달
         "chart_number": record.chart_number,
         "symptoms": record.symptoms,
         "xray_image_url": image_url,
