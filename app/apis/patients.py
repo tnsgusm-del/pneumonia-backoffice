@@ -240,7 +240,7 @@ async def create_medical_record(
 
 @router.get("/patients/{patient_id}/medical-records", response_model=List[MedicalRecordBriefResponse])
 def get_patient_records(patient_id: int, db: Session = Depends(get_db)):
-    """[REQ-MDR-002] 특정 환자의 진료 기록 목록 요약본 조회 API"""
+    """[REQ-MDR-002] 특정 환자의 진료 기록 목록 요약본 조회 API (증상 100자 요약 기능 포함)"""
     patient = db.execute(select(Patient).where(Patient.id == patient_id)).scalars().first()
     if not patient:
         raise HTTPException(status_code=404, detail="해당 환자 정보를 찾을 수 없습니다.")
