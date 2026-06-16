@@ -5,8 +5,10 @@ class Settings(BaseSettings):
     DB_USER: str = "ozcoding"
     DB_PASSWORD: str = "pw1234"
     DB_HOST: str = "localhost"
-    DB_PORT: str = "3307"
+    DB_PORT: str = "3306"
     DB_NAME: str = "ai_health"
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
 
     @computed_field
     @property
