@@ -19,4 +19,5 @@ dependencies = [
     "torch>=2.0.0",
     "torchvision>=0.15.0",
     "uuid6>=2025.0.1",
+    "redis>=5.0.0",
 ]
